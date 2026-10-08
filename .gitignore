@@ -216,3 +216,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+#MongoData y otras cosas
+mongo_data/
+*.pyc
