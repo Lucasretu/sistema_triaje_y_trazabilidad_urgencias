@@ -14,7 +14,7 @@ def download(file_name):
     r = urlopen(url)
     
     # Nombre y dónde con el que quiero descargar el archivo. (Mismo que el recibido)
-    output_path = Path(__file__).resolve().parent / Path(file_name).name
+    output_path = Path(__file__).resolve().parent / "./data" / Path(file_name).name
     with open(output_path, 'wb') as f:
         f.write(r.read())
     r.close()
