@@ -1,0 +1,1 @@
+# Scrip principal de la aplicación
