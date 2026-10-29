@@ -1,3 +1,5 @@
+# Script de migración batch inicial a Mongo
+
 import json
 
 from pathlib import Path
@@ -25,8 +27,3 @@ def limpiar_admisiones():
     df["frecuencia_cardiaca"] = int(df["frecuencia_cardiaca"])
     df["tension_arterial"] = int(df["tension_arterial"])
     df["destino_alta"] = df["destino_alta"].str.strip().str.lower()
-
-    # Duplicados
-    df = df.drop_duplicates()
-
-   
