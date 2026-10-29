@@ -29,7 +29,7 @@ def check_updates():
 
     # Verificar que la petición fue exitosa (código 200)
     if response.status_code == 200:
-        # OJO Convertir el contenido JSON en un diccionario de Python
+        # Convertir el contenido JSON en un diccionario de Python
         datos = response.json()
         print("Datos recibidos:")
         print(datos)
