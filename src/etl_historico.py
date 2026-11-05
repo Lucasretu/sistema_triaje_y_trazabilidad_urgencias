@@ -1,6 +1,7 @@
 # Script de migración batch inicial a Mongo
 
 import json
+import re
 
 from pathlib import Path
 
@@ -13,24 +14,27 @@ import pandas as pd
 df= pd.read_csv("data/admisiones_historico.csv")    
 
 def limpiar_admisiones():
+    formato()
     correcion_errores_fechas(df["timestamp_llegada"])
     correcion_errores_fechas(df["timestamp_alta"])
-    #df["frecuencia_cardiaca"] = int(df["frecuencia_cardiaca"])
-    #df["tension_arterial"] = int(df["tension_arterial"])
+    print(df.duplicated().sum())
+    df_limpio=del_duplicados(df)
+    print(df_limpio.duplicated().sum())
 
-
-    # Duplicados
-    df = df.drop_duplicates()
-
-    print(df.isna().sum())
+    df_limpio.to_csv("limpio.csv",index=False)
+    
+    
 
 def correcion_errores_frecuencias():
     # Frecuencia cardiaca
     df["frecuencia_cardiaca"]=pd.to_numeric(df["frecuencia_cardiaca"],errors="coerce")
-    df[(df["frecuencia_cardiaca"]<=0)|(df["frecuencia_cardiaca"]>=321)]=pd.NA
+    df.loc[(df["frecuencia_cardiaca"]<=0)|(df["frecuencia_cardiaca"]>=321),"frecuencia_cardiaca"]=None
+
     #Tension Arterial
     df["tension_arterial"]=df["tension_arterial"].str.replace("_", "/", regex=False)
-    print(df["tension_arterial"].head(3))
+    mascara=df["tension_arterial"].str.fullmatch(r"\d{2,3}/\d{2,3}").fillna(False)
+    df.loc[~mascara, "tension_arterial"]=pd.NA
+
 
 
 def correcion_errores_fechas(serie):
@@ -50,14 +54,23 @@ def correcion_errores_fechas(serie):
 
     serie = resultado
 
-def formato(df):
-    df.columns = df.columns.str.strip().str.lower()
+def formato():
     df["id_episodio"] = df["id_episodio"].str.strip().str.upper()
     df["sip_paciente"] = df["sip_paciente"].str.strip().str.upper()
     df["motivo_consulta"] = df["motivo_consulta"].str.strip().str.lower()
     df["destino_alta"] = df["destino_alta"].str.strip().str.lower()
-
+    df["tension_arterial"] = df["tension_arterial"].str.strip().str.lower()
+    
+def del_duplicados(df):
     # Duplicados
-    df = df.drop_duplicates()
+    df["n_nulos"]=df.isna().sum(axis=1)
+    df = (
+        df.sort_values(["n_nulos", "timestamp_alta"], ascending=[True, False])
+        .drop_duplicates(subset="id_episodio",keep="first")
+        .drop(columns="n_nulos")
+        .sort_index()
+    )
 
-correcion_errores_frecuencias()
+    return df
+
+limpiar_admisiones()
