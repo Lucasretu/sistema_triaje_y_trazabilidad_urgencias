@@ -25,7 +25,13 @@ def limpiar_admisiones():
     print(df.isna().sum())
 
 def correcion_errores_frecuencias():
-    pass
+    # Frecuencia cardiaca
+    df["frecuencia_cardiaca"]=pd.to_numeric(df["frecuencia_cardiaca"],errors="coerce")
+    df[(df["frecuencia_cardiaca"]<=0)|(df["frecuencia_cardiaca"]>=321)]=pd.NA
+    #Tension Arterial
+    df["tension_arterial"]=df["tension_arterial"].str.replace("_", "/", regex=False)
+    print(df["tension_arterial"].head(3))
+
 
 def correcion_errores_fechas(serie):
     raw = serie.replace("N/D", pd.NA)
@@ -54,4 +60,4 @@ def formato(df):
     # Duplicados
     df = df.drop_duplicates()
 
-   
+correcion_errores_frecuencias()

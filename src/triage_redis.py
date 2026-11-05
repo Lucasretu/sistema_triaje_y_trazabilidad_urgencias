@@ -1,0 +1,1 @@
+# Funciones de lógica de colas y boxes en Redis

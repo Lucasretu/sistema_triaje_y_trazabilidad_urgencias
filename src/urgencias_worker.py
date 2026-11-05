@@ -1,0 +1,1 @@
+# Agente de polling continuo contra la API

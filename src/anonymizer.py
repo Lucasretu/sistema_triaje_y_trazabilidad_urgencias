@@ -1,0 +1,1 @@
+# (Opcional) Funciones de anonimización/RGPD
