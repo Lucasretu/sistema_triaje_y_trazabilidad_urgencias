@@ -1,3 +1,4 @@
+import time
 from urllib.request import urlopen
 from pathlib import Path
 import requests
@@ -36,3 +37,8 @@ def check_updates():
         print("Título:", datos.get("title"))
     else:
         print(f"Error en la petición: {response.status_code}")
+
+# Actualizar la API cada 5 segundos
+while True:
+    check_updates()
+    time.sleep(5)
