@@ -102,4 +102,23 @@ def limpiar_partes_Clinicos():
             constantes["temperatura_c"]=np.nan
     
     return partes_clinicos
-      
+
+
+# Une los datos limpios del csv con los del json usando id_episodio como clave
+def unir_datos(df_limpio, df_partes):
+    # Normaliza las claves por si aca
+    df_partes["id_episodio"] = df_partes["id_episodio"].str.strip().str.upper()
+    # Se mantienen todas las admisiones y se añaden los datos del parte clinico
+    df_final = pd.merge(df_limpio, df_partes, on="id_episodio", how="left")
+ 
+    return df_final
+
+# Guarda el resultado en un json
+def exportar_json(df_final):
+    df_final.to_json("data/migracion_mongo.json", orient="records", date_format="iso", force_ascii=False, indent=4)
+ 
+# Ejecucion del script
+df_limpio = limpiar_admisiones()
+df_partes = limpiar_partes_Clinicos()
+df_final = unir_datos(df_limpio, df_partes)
+exportar_json(df_final)
