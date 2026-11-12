@@ -220,3 +220,4 @@ __marimo__/
 #MongoData y otras cosas
 mongo_data/
 *.pyc
+migracion_mongo.json
