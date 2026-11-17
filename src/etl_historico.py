@@ -40,7 +40,7 @@ def correcion_errores_frecuencias():
     admisiones_historico.loc[~mascara, "tension_arterial"]=pd.NA
 
 # Convierte todas las fechas del csv al tipo datetime
-def correcion_errores_fechas(serie):
+def correcion_formato_fechas(serie):
     raw = serie.replace("N/D", pd.NA)
     formatos = [
     "%d/%m/%Y %I:%M %p",
@@ -56,6 +56,7 @@ def correcion_errores_fechas(serie):
         resultado = resultado.fillna(parsed)
 
     serie = resultado
+   
 
 # Elimina los duplicados del csv en funcion del numero de null del registro   
 def del_duplicados(df):
@@ -71,8 +72,9 @@ def del_duplicados(df):
 
 def limpiar_admisiones():
     formato()
-    correcion_errores_fechas(admisiones_historico["timestamp_llegada"])
-    correcion_errores_fechas(admisiones_historico["timestamp_alta"])
+    correcion_formato_fechas(admisiones_historico["timestamp_llegada"])
+    correcion_formato_fechas(admisiones_historico["timestamp_alta"])
+    admisiones_historico.loc[admisiones_historico["timestamp_alta"] < admisiones_historico["timestamp_llegada"], ["timestamp_llegada", "timestamp_alta"]] = pd.NaT
     print(admisiones_historico.duplicated().sum())
     df_limpio=del_duplicados(admisiones_historico)
 
