@@ -111,7 +111,8 @@ def check_updates():
     # Procesa los nuevos ingresos y las altas recibidas.
     process_new_patients(datos.get("nuevos_ingresos", []))
     process_discharges(datos.get("pacientes_alta", []))
-    
+
+# ---------------------------- PRINCIPAL ----------------------------    
 # Inicia el agente y consulta la API cada cinco segundos.
 if __name__ == "__main__":
     try:
