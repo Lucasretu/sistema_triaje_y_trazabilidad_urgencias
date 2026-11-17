@@ -5,7 +5,7 @@ import json
 from pymongo import MongoClient
 
 # Conexion al servidor local
-client = MongoClient("mongodb://localhost:27017/")
+client = MongoClient("mongodb://admin:adminpassword@localhost:27017/?authSource=admin")
 historico_db = client["hospital_db"]
 datos = historico_db["episodios"]
 
