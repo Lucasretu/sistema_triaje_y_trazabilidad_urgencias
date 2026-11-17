@@ -11,7 +11,7 @@ from triage_redis import (initialize_boxes, add_patient_to_queue, prepare_discha
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
 mongo_client = MongoClient(MONGO_URI)
 mongo_db = mongo_client["hospital_db"]
-collection = mongo_db["episodios_urgencias"]
+collection = mongo_db["episodios"]
 
 # Consultar la API cada 5 segundos 
 def get_updates():
