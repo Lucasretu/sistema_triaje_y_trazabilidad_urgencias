@@ -1,5 +1,7 @@
 # Script de migración batch inicial a Mongo
 
+# Parte 1: Limpieza de los historicos y exportación a JSON
+
 import json
 import re
 
@@ -67,7 +69,6 @@ def del_duplicados(df):
         .drop(columns="n_nulos")
         .sort_index()
     )
-
     return df
 
 def limpiar_admisiones():
@@ -120,7 +121,33 @@ def exportar_json(df_final):
     df_final.to_json("data/migracion_mongo.json", orient="records", date_format="iso", force_ascii=False, indent=4)
  
 # Ejecucion del script
-df_limpio = limpiar_admisiones()
-df_partes = limpiar_partes_Clinicos()
-df_final = unir_datos(df_limpio, df_partes)
-exportar_json(df_final)
+def main_1():
+    df_limpio = limpiar_admisiones()
+    df_partes = limpiar_partes_Clinicos()
+    df_final = unir_datos(df_limpio, df_partes)
+    exportar_json(df_final)
+
+main_1()
+
+# Parte 2: Migración de los historicos a MongoDB
+
+import json
+
+from pymongo import MongoClient
+
+# Conexion al servidor local
+client = MongoClient("mongodb://localhost:27017/")
+historico_db = client["hospital_db"]
+datos = historico_db["episodios"]
+
+# Leemos el json
+with open("data/migracion_mongo.json", encoding="utf-8") as f:
+    historico = json.load(f)
+
+def main_2():
+    # Borramos todo para que no haya duplicados al insertar
+    datos.delete_many({})
+    # Insertamos el hsitorico
+    datos.insert_many(historico)
+
+main_2()
