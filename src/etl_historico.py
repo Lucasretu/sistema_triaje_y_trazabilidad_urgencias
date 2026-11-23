@@ -2,7 +2,7 @@
 
 # Parte 1: Limpieza de los historicos y exportación a JSON
 
-import json
+import json, time
 import re
 
 from pathlib import Path
@@ -58,6 +58,9 @@ def correcion_formato_fechas(serie):
         resultado = resultado.fillna(parsed)
 
     serie = resultado
+
+    return serie
+   
    
 
 # Elimina los duplicados del csv en funcion del numero de null del registro   
@@ -73,8 +76,8 @@ def del_duplicados(df):
 
 def limpiar_admisiones():
     formato()
-    correcion_formato_fechas(admisiones_historico["timestamp_llegada"])
-    correcion_formato_fechas(admisiones_historico["timestamp_alta"])
+    admisiones_historico["timestamp_llegada"]=correcion_formato_fechas(admisiones_historico["timestamp_llegada"])
+    admisiones_historico["timestamp_alta"]=correcion_formato_fechas(admisiones_historico["timestamp_alta"])
     admisiones_historico.loc[admisiones_historico["timestamp_alta"] < admisiones_historico["timestamp_llegada"], ["timestamp_llegada", "timestamp_alta"]] = pd.NaT
     print(admisiones_historico.duplicated().sum())
     df_limpio=del_duplicados(admisiones_historico)
@@ -107,25 +110,95 @@ def limpiar_partes_Clinicos():
     return partes_clinicos
 
 
+def nan_a_none(v):
+    return None if pd.isna(v) else v
+
+def a_epoch(ts):
+    if pd.isna(ts):
+        return None
+    return pd.to_datetime(ts).timestamp()
+
+def a_texto(ts):
+    if pd.isna(ts):
+        return None
+    return pd.to_datetime(ts).strftime("%Y-%m-%d %H:%M:%S")
+
+
+
+
+def construir_ingresos(serie,modulos_cols):
+    tri, cons = serie["triaje_manchester"], serie["constantes"]
+
+    datos_triaje = {
+    "nivel_manchester": tri["nivel"],
+    "color": tri["color"],
+    "categoria_patologia": tri["categoria_patologia"],
+    "tiempo_max_espera_min": tri["tiempo_max_espera_min"],
+    "constantes": {
+        "temperatura_c": nan_a_none(cons.get("temperatura_c")),
+        "frecuencia_cardiaca": nan_a_none(cons.get("frecuencia_cardiaca_triaje")),
+        "tension_arterial": nan_a_none(serie["tension_arterial"]),
+        "saturacion_o2": nan_a_none(cons.get("saturacion_o2")),
+        "glucemia_mg_dl": nan_a_none(cons.get("glucemia_mg_dl"))
+    },
+    "antecedentes": serie["antecedentes"],
+    "alergias": serie["alergias"],}
+
+    for col in modulos_cols:
+        if isinstance(serie[col], dict):
+            datos_triaje[col] = serie[col]
+
+    return {
+        "id_episodio": serie["id_episodio"],
+        "datos_admision": {
+            "sip_paciente": serie["sip_paciente"],
+            "edad": int(serie["edad"]),
+            "motivo_consulta": serie["motivo_consulta"],
+            "timestamp_llegada":a_epoch(serie["timestamp_llegada"]),
+            "fecha_hora_texto": a_texto(serie["timestamp_llegada"]),
+        },
+        "datos_triaje": datos_triaje,
+    }
+
+def construir_alta(serie):
+    return {
+        "id_episodio": serie["id_episodio"],
+        "timestamp_alta":a_epoch(serie["timestamp_alta"]),
+        "fecha_hora_alta": a_texto(serie["timestamp_alta"]),
+        "destino_alta": nan_a_none(serie["destino_alta"]),
+    }
+
 # Une los datos limpios del csv con los del json usando id_episodio como clave
 def unir_datos(df_limpio, df_partes):
-    # Normaliza las claves por si aca
-    df_partes["id_episodio"] = df_partes["id_episodio"].str.strip().str.upper()
-    # Se mantienen todas las admisiones y se añaden los datos del parte clinico
-    df_final = pd.merge(df_limpio, df_partes, on="id_episodio", how="left")
- 
-    return df_final
+    
+    df_final = pd.merge(df_limpio, df_partes, on=["id_episodio", "sip_paciente"], how="inner", validate="one_to_one",)
+
+    modulos_cols = [c for c in df_final if c.startswith("modulo_")]
+    mask_alta = df_final["timestamp_alta"].notna()
+
+    nuevos = [construir_ingresos(r,modulos_cols) for _, r in df_final[~mask_alta].iterrows()]
+    altas  = [construir_alta(r)   for _, r in df_final[mask_alta].iterrows()]
+
+    resultado = {
+    "timestamp_consulta": time.time(),
+    "total_nuevos": len(nuevos),
+    "total_altas": len(altas),
+    "nuevos_ingresos": nuevos,
+    "pacientes_alta": altas,
+    }
+    
+    return resultado
 
 # Guarda el resultado en un json
-def exportar_json(df_final):
-    df_final.to_json("data/migracion_mongo.json", orient="records", date_format="iso", force_ascii=False, indent=4)
+def exportar_json(resultado):
+    with open("data/migracion_mongo.json", "w", encoding="utf-8") as f:
+        json.dump(resultado, f, indent=4, ensure_ascii=False, default=str)
  
 # Ejecucion del script
-def main_1():
-    df_limpio = limpiar_admisiones()
-    df_partes = limpiar_partes_Clinicos()
-    df_final = unir_datos(df_limpio, df_partes)
-    exportar_json(df_final)
+df_limpio = limpiar_admisiones()
+df_partes = limpiar_partes_Clinicos()
+df_final = unir_datos(df_limpio, df_partes)
+exportar_json(df_final)
 
 main_1()
 
