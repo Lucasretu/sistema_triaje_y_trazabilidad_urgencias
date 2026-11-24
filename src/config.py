@@ -12,3 +12,6 @@ REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
 
 # Base de datos de Redis que se utilizará.
 REDIS_DB = int(os.getenv("REDIS_DB", "0"))
+
+# URI de conexión a MongoDB; permite configurar la dirección y las credenciales mediante una variable de entorno.
+MONGO_URI = os.getenv("MONGO_URI", "mongodb://admin:adminpassword@localhost:27017/?authSource=admin")

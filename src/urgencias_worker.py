@@ -1,4 +1,4 @@
-import os
+from config import MONGO_URI
 import time
 from pathlib import Path
 from urllib.parse import urljoin
@@ -10,7 +10,6 @@ from triage_redis import (initialize_boxes, add_patient_to_queue, prepare_discha
 
 # --------------------- CONFIGURACIÓN ---------------------
 # Configura la conexión con MongoDB.
-MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
 mongo_client = MongoClient(MONGO_URI)
 mongo_db = mongo_client["hospital_db"]
 collection = mongo_db["episodios"]
