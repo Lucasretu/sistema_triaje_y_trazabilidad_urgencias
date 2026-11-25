@@ -53,7 +53,10 @@ def detener_worker():
     if worker_thread is not None and worker_thread.is_alive():
         parar_worker.set()
         worker_thread.join(timeout=12)
-        print("Procesamiento en tiempo real detenido.")
+        if worker_thread.is_alive():
+            print("El trabajador todavía no ha terminado.")
+        else:
+            print("Procesamiento en tiempo real detenido.")
     else:
         print("El procesamiento en tiempo real no está iniciado.")
 
