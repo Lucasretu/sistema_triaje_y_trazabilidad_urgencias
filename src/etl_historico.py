@@ -95,7 +95,7 @@ def limpiar_admisiones():
 
 def limpiar_partes_Clinicos():
     #Duplicados
-    partes_limpios=partes_clinicos.drop_duplicates(subset="_id_parte")
+    partes_limpios=partes_clinicos.drop_duplicates(subset="_id_parte").copy()
     #formato edad 
     partes_limpios["edad"]=pd.to_numeric(partes_clinicos["edad"],errors="coerce")   
     for constantes in partes_limpios["constantes"]:
@@ -221,8 +221,7 @@ def main_1():
 
 # Parte 2: Migración de los historicos a MongoDB
 def main_2():
-    with open("data/migracion_mongo.json", encoding="utf-8") as f:
-        historico = json.load(f)
+    
  
     main_1()
  
