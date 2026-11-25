@@ -11,7 +11,7 @@ import pandas as pd
 import numpy as np
 
 from pymongo import MongoClient
-from config import MONGO_URI
+from .config import MONGO_URI
 
 # Carga de los historicos
 admisiones_historico = None

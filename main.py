@@ -1,4 +1,4 @@
-# Scrip principal de la aplicación
+# Scrip principal de la aplicación1
 
 import time
 from threading import Thread, Event
