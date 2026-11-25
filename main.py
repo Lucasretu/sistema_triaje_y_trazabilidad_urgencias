@@ -63,12 +63,14 @@ def menu_principal():
     time.sleep(1)
 
     while True:
+        print()
         print("Seleccione una opción:")
         print("1. Exportacion de historico a JSON")
         print("2. Insercion del JSON en MongoDB")
         print("3. Consulta de datos en MongoDB")
         print("4. Iniciar procesamiento en tiempo real")
         print("5. Salir")
+        print()
 
         opcion = input("Seleccione una opción: ")
 

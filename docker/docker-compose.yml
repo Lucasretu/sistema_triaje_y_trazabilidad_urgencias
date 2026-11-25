@@ -13,7 +13,7 @@ services:
     volumes:
       - ${MONGO_DATA_PATH:-./mongo_data}:/data/db
     networks:
-      - ${DOCKER_NETWORK_NAME:-shared-network}
+      - urgencias-network
     healthcheck:
       test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
       interval: 5s
@@ -39,7 +39,7 @@ services:
       ME_CONFIG_BASICAUTH_USERNAME: ${ME_CONFIG_BASICAUTH_USERNAME:-mongo}
       ME_CONFIG_BASICAUTH_PASSWORD: ${ME_CONFIG_BASICAUTH_PASSWORD:-mongopassword}
     networks:
-      - ${DOCKER_NETWORK_NAME:-shared-network}
+      - urgencias-network
 
   redis:
     image: redis:7.2
@@ -52,23 +52,32 @@ services:
     command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
     restart: unless-stopped
     networks:
-      - shared-network
+      - urgencias-network
 
   python:
-    build: ./python
+    build:
+      context: ..
+      dockerfile: docker/python/Dockerfile
     container_name: python
-    ports:
-      - "8000:8000"
+    stdin_open: true
+    tty: true
+    environment:
+      MONGO_URI: mongodb://${MONGO_INITDB_ROOT_USERNAME:-admin}:${MONGO_INITDB_ROOT_PASSWORD:-adminpassword}@mongo:27017/?authSource=admin
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+    volumes:
+      - ../data:/app/data
     depends_on:
-      - mongo
-      - redis
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_started
     networks:
-      - shared-network
+      - urgencias-network
 
 volumes:
   redis-data:
 
 networks:
-  shared-network:
-    external: true
-    name: ${DOCKER_NETWORK_NAME:-shared-network}
+  urgencias-network:
+    name: ${DOCKER_NETWORK_NAME:-urgencias-network}
