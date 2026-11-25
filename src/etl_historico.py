@@ -82,7 +82,6 @@ def limpiar_admisiones():
     admisiones_historico["timestamp_llegada"]=correcion_formato_fechas(admisiones_historico["timestamp_llegada"])
     admisiones_historico["timestamp_alta"]=correcion_formato_fechas(admisiones_historico["timestamp_alta"])
     admisiones_historico.loc[admisiones_historico["timestamp_alta"] < admisiones_historico["timestamp_llegada"], ["timestamp_llegada", "timestamp_alta"]] = pd.NaT
-    print(admisiones_historico.duplicated().sum())
     df_limpio=del_duplicados(admisiones_historico)
 
     return df_limpio
@@ -125,8 +124,6 @@ def a_texto(ts):
     if pd.isna(ts):
         return None
     return pd.to_datetime(ts).strftime("%Y-%m-%d %H:%M:%S")
-
-
 
 
 def construir_ingresos(serie,modulos_cols):

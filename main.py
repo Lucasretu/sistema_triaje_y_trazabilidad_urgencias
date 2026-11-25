@@ -7,6 +7,7 @@ from src.urgencias_worker import check_updates, mongo_client
 from src.triage_redis import initialize_boxes, redis_client
 from src.etl_historico import main_1 as etl_main
 from src.etl_historico import main_2 as mongo_main
+from src.consultas import mostrar_consultas
 
 # Evento para indicar al worker cuándo debe detenerse.
 parar_worker = Event()
@@ -65,7 +66,7 @@ def menu_principal():
         print("Seleccione una opción:")
         print("1. Exportacion de historico a JSON")
         print("2. Insercion del JSON en MongoDB")
-        print("3. Consulta de datos en MongoDB (aun no implementada)")
+        print("3. Consulta de datos en MongoDB")
         print("4. Iniciar procesamiento en tiempo real")
         print("5. Salir")
 
@@ -80,7 +81,11 @@ def menu_principal():
             mongo_main()
             print("Inserción del JSON en MongoDB completada.")
         elif opcion == "3":
-            print("Opción 3 seleccionada. Esta opción aún no está implementada.")
+            # Muestra las consultas analíticas.
+            try:
+                mostrar_consultas()
+            except Exception as e:
+                print(f"No se pudieron mostrar las consultas: {e}")
         elif opcion == "4":
             iniciar_worker()
         elif opcion == "5":
