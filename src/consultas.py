@@ -10,10 +10,11 @@
 #    hacía un col.drop() que borraba la colección. También esperaba otro
 #    formato de JSON (nuevos_ingresos / pacientes_alta).
 
+from .config import MONGO_DB, MONGO_COLLECTION
 from .urgencias_worker import mongo_client
 
 # Colección que rellenan la opción 2 del menú y el procesamiento en tiempo real.
-col = mongo_client["hospital_db"]["episodios"]
+col = mongo_client[MONGO_DB][MONGO_COLLECTION]
 
 
 # ------------------------------------------------------------------

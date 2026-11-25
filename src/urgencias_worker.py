@@ -1,4 +1,4 @@
-from .config import MONGO_URI, DOWNLOAD_BASE_URL, UPDATES_API_URL
+from .config import MONGO_URI, MONGO_DB, MONGO_COLLECTION, DOWNLOAD_BASE_URL, UPDATES_API_URL
 import time
 from pathlib import Path
 from urllib.parse import urljoin
@@ -9,9 +9,9 @@ from .triage_redis import (initialize_boxes, add_patient_to_queue, prepare_disch
 
 # --------------------- CONFIGURACIÓN ---------------------
 # Configura la conexión con MongoDB.
-mongo_client = MongoClient(MONGO_URI)
-mongo_db = mongo_client["hospital_db"]
-collection = mongo_db["episodios"]
+mongo_client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+mongo_db = mongo_client[MONGO_DB]
+collection = mongo_db[MONGO_COLLECTION]
 
 # Nombres de los dos archivos históricos disponibles en el servidor.
 HISTORICAL_FILES = ("admisiones_historico.csv", "partes_clinicos.json")
@@ -141,30 +141,37 @@ def check_updates():
                         print(f"Paciente {asignacion['id_episodio']} " 
                             f"asignado a {asignacion['box']}")
 
-                except (ValueError, KeyError) as error:
+                except Exception as error:
+                    # Un fallo en un ingreso no debe parar el resto del lote.
                     print(f"Error al procesar un ingreso: {error}")
 
     for paciente in datos.get("pacientes_alta", []):
         if isinstance(paciente, dict):
             alta = process_discharge(paciente)
             if alta:
+                # 1) Consolida el episodio en MongoDB.
                 try:
                     # Recupera los datos completos del paciente desde Redis.
                     documento = prepare_discharge_document(alta)
 
-                    # No continúa si no se encuentran los datos del episodio.
+                    # Si el episodio no estaba en Redis, guarda al menos el alta
+                    # para no perder el evento.
                     if documento is None:
-                        continue
+                        documento = {"id_episodio": alta["id_episodio"], "datos_alta": alta}
+                        print(f"Sin datos en Redis para {alta['id_episodio']}; se guarda solo el alta.")
 
                     # Guarda o actualiza el episodio en MongoDB.
                     collection.update_one({"id_episodio": alta["id_episodio"]}, {"$set": documento}, upsert=True)
-
-                    # Elimina el episodio de Redis después de guardarlo en MongoDB.
-                    resultado = complete_discharge(alta["id_episodio"])
                     altas_procesadas.append(alta)
-                    
-                    # Informa del alta y del box liberado.
                     print(f"Alta guardada en MongoDB: {alta['id_episodio']}")
+
+                except Exception as error:
+                    print(f"No se pudo consolidar el alta: {error}")
+                    continue
+
+                # 2) Libera el box y borra al paciente de Redis.
+                try:
+                    resultado = complete_discharge(alta["id_episodio"])
 
                     if resultado["box_liberado"]:
                         print(f"Box liberado: {resultado['box_liberado']}")
@@ -174,10 +181,8 @@ def check_updates():
                         print(f"Paciente {asignacion['id_episodio']} "
                             f"asignado a {asignacion['box']}")
 
-                except (ValueError, KeyError) as error:
-                    print(f"Error al procesar un alta: {error}")
                 except Exception as error:
-                    print(f"Error al guardar el alta en MongoDB: {error}")
+                    print(f"El alta está en MongoDB pero no se pudo limpiar Redis: {error}")
 
     # Devuelve los eventos preparados para que los utilice el worker.
     return {"nuevos_ingresos": nuevos_procesados, "pacientes_alta": altas_procesadas}

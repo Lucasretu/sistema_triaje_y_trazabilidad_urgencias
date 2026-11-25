@@ -1,25 +1,11 @@
-# Pipelines de agregación analítica
+# Pipelines de agregación analítica.
+#
+# Las dos consultas del reto viven en src/consultas.py para poder mostrarlas
+# también desde el menú de main.py sin duplicar código.
+# Antes este archivo borraba la colección e insertaba el JSON al importarse,
+# así que ahora solo expone las consultas y no toca la base de datos.
 
-import json
+from .consultas import consulta_1, consulta_2, mostrar_consultas
 
-from pymongo import MongoClient
-
-# Conexion al servidor local
-client = MongoClient("mongodb://admin:adminpassword@localhost:27017/?authSource=admin")
-historico_db = client["hospital_db"]
-datos = historico_db["episodios"]
-
-# Leemos el json
-with open("data/migracion_mongo.json", encoding="utf-8") as f:
-    historico = json.load(f)
-
-# Borramos todo para que no haya duplicados al insertar
-datos.delete_many({})
-
-# Insertamos el hsitorico
-resultado = datos.insert_many(historico)
-print(f"Documentos insertados: {len(resultado.inserted_ids)}")
-
-# Comprobacion: muestra un documento y el total que hay en la coleccion
-print(datos.find_one({}, {"_id": 0}))
-print(datos.count_documents({}))
+if __name__ == "__main__":
+    mostrar_consultas()

@@ -74,12 +74,18 @@ def menu_principal():
 
         if opcion == "1":
             # Llamamos a la funcion principal del script del ETL para limpiar los datos y exportarlos a JSON
-            etl_main()
-            print("Exportación de historico a JSON completada.")
+            try:
+                etl_main()
+                print("Exportación de historico a JSON completada.")
+            except Exception as e:
+                print(f"No se pudo exportar el histórico: {e}")
         elif opcion == "2":
             # Llamamos a la funcion principal del script del ETL para insertar el JSON en MongoDB
-            mongo_main()
-            print("Inserción del JSON en MongoDB completada.")
+            try:
+                mongo_main()
+                print("Inserción del JSON en MongoDB completada.")
+            except Exception as e:
+                print(f"No se pudo insertar el histórico en MongoDB: {e}")
         elif opcion == "3":
             # Muestra las consultas analíticas.
             try:
