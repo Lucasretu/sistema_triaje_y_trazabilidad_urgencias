@@ -4,7 +4,7 @@ from pathlib import Path
 
 from pymongo import MongoClient
 
-RUTA_JSON = Path(__file__).resolve().parent / "data" / "episodios_urgencias.json"
+
 client = MongoClient(os.getenv("MONGO_URI", "mongodb://localhost:27017"),
                      serverSelectionTimeoutMS=5000)
 col = client["urgencias"]["episodios"]
@@ -15,7 +15,7 @@ col = client["urgencias"]["episodios"]
 #    (ingreso + triaje + alta embebida en el campo "alta")
 # ------------------------------------------------------------------
 def cargar():
-    with open(RUTA_JSON, encoding="utf-8") as f:
+    with open("data/migracion_mongo.json", encoding="utf-8") as f:
         datos = json.load(f)
     altas = {a["id_episodio"]: a for a in datos["pacientes_alta"]}
 
