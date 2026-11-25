@@ -1,36 +1,20 @@
-import json
-import os
-from pathlib import Path
+# Consultas sobre los episodios guardados en MongoDB.
+#
+# Correcciones respecto a la versión anterior:
+#  * Se conectaba a "mongodb://localhost:27017" sin usuario ni contraseña.
+#    Ahora se reutiliza mongo_client (src/urgencias_worker.py), que ya coge
+#    la URI con credenciales de src/config.py.
+#  * Se leía la base de datos "urgencias" y el campo "alta". La opción 2 del
+#    menú y el worker en tiempo real guardan en "hospital_db" y en "datos_alta".
+#  * Se ha eliminado cargar(): los datos ya los inserta la opción 2 y, además,
+#    hacía un col.drop() que borraba la colección. También esperaba otro
+#    formato de JSON (nuevos_ingresos / pacientes_alta).
 
-from pymongo import MongoClient
+from .config import MONGO_DB, MONGO_COLLECTION
+from .urgencias_worker import mongo_client
 
-
-client = MongoClient(os.getenv("MONGO_URI", "mongodb://localhost:27017"),
-                     serverSelectionTimeoutMS=5000)
-col = client["urgencias"]["episodios"]
-
-
-# ------------------------------------------------------------------
-# 0. Carga: una colección con un documento por episodio
-#    (ingreso + triaje + alta embebida en el campo "alta")
-# ------------------------------------------------------------------
-def cargar():
-    with open("data/migracion_mongo.json", encoding="utf-8") as f:
-        datos = json.load(f)
-    altas = {a["id_episodio"]: a for a in datos["pacientes_alta"]}
-
-    docs = []
-    for ing in datos["nuevos_ingresos"]:
-        doc = dict(ing)
-        a = altas.get(ing["id_episodio"])
-        if a:
-            doc["alta"] = {k: v for k, v in a.items() if k != "id_episodio"}
-        doc["_id"] = ing["id_episodio"]
-        docs.append(doc)
-
-    col.drop()  # idempotente: se puede relanzar sin duplicar
-    col.insert_many(docs)
-    print(f"Cargados {col.count_documents({})} episodios\n")
+# Colección que rellenan la opción 2 del menú y el procesamiento en tiempo real.
+col = mongo_client[MONGO_DB][MONGO_COLLECTION]
 
 
 # ------------------------------------------------------------------
@@ -38,12 +22,12 @@ def cargar():
 # ------------------------------------------------------------------
 def consulta_1():
     pipeline = [
-        {"$match": {"alta.timestamp_alta": {"$exists": True}}},
+        {"$match": {"datos_alta.timestamp_alta": {"$exists": True}}},
         {"$project": {
             "categoria": "$datos_triaje.categoria_patologia",
             # los timestamps son epoch en segundos -> /60 para minutos
             "estancia_min": {"$divide": [
-                {"$subtract": ["$alta.timestamp_alta",
+                {"$subtract": ["$datos_alta.timestamp_alta",
                                "$datos_admision.timestamp_llegada"]}, 60]},
         }},
         {"$group": {"_id": "$categoria",
@@ -66,12 +50,12 @@ ETIQUETAS = {0: "0-14", 15: "15-34", 35: "35-49", 50: "50-64", 65: "65-79", 80: 
 
 
 def _cuenta(destino):
-    return {"$sum": {"$cond": [{"$eq": ["$alta.destino_alta", destino]}, 1, 0]}}
+    return {"$sum": {"$cond": [{"$eq": ["$datos_alta.destino_alta", destino]}, 1, 0]}}
 
 
 def consulta_2():
     pipeline = [
-        {"$match": {"alta.destino_alta": {"$in": ["domicilio", "ingreso_planta"]}}},
+        {"$match": {"datos_alta.destino_alta": {"$in": ["domicilio", "ingreso_planta"]}}},
         {"$bucket": {
             "groupBy": "$datos_admision.edad",
             "boundaries": LIMITES,           # [a, b) -> 14 cae en 0-14, 15 en 15-34
@@ -94,14 +78,28 @@ def consulta_2():
     return res
 
 
-if __name__ == "__main__":
-    cargar()
-
+# Muestra por pantalla las dos consultas de forma sencilla.
+def mostrar_consultas():
+    print()
     print("1) Estancia media por categoría patológica")
-    for r in consulta_1():
-        print(f"   {r['categoria']:<15} {r['estancia_media_min']:>8.2f} min   (n={r['n_episodios']})")
+    resultados = consulta_1()
+    if len(resultados) == 0:
+        print("   No hay datos. Ejecuta antes las opciones 1 y 2 del menú.")
+    else:
+        for r in resultados:
+            print(f"   {str(r['categoria']):<15} {r['estancia_media_min']:>8.2f} min   (n={r['n_episodios']})")
 
-    print("\n2) Destino al alta por grupo de edad (domicilio vs ingreso en planta)")
-    for r in consulta_2():
-        print(f"   {r['grupo_edad']:<6} domicilio {r['pct_domicilio']:>5}% | "
-              f"planta {r['pct_ingreso_planta']:>5}%   (n={r['total']})")
+    print()
+    print("2) Destino al alta por grupo de edad (domicilio vs ingreso en planta)")
+    resultados = consulta_2()
+    if len(resultados) == 0:
+        print("   No hay datos. Ejecuta antes las opciones 1 y 2 del menú.")
+    else:
+        for r in resultados:
+            print(f"   {r['grupo_edad']:<6} domicilio {r['pct_domicilio']:>5}% | "
+                  f"planta {r['pct_ingreso_planta']:>5}%   (n={r['total']})")
+    print()
+
+
+if __name__ == "__main__":
+    mostrar_consultas()

@@ -15,3 +15,7 @@ REDIS_DB = int(os.getenv("REDIS_DB", "0"))
 
 # URI de conexión a MongoDB; permite configurar la dirección y las credenciales mediante una variable de entorno.
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://admin:adminpassword@localhost:27017/?authSource=admin")
+
+# Base de datos y colección donde se guardan los episodios.
+MONGO_DB = "hospital_db"
+MONGO_COLLECTION = "episodios_urgencias"
