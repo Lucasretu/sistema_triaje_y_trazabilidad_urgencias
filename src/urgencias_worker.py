@@ -1,12 +1,11 @@
-from config import MONGO_URI
+from .config import MONGO_URI, DOWNLOAD_BASE_URL, UPDATES_API_URL
 import time
 from pathlib import Path
 from urllib.parse import urljoin
 import requests
-from config import DOWNLOAD_BASE_URL, UPDATES_API_URL
 
 from pymongo import MongoClient
-from triage_redis import (initialize_boxes, add_patient_to_queue, prepare_discharge_document, complete_discharge)
+from .triage_redis import (initialize_boxes, add_patient_to_queue, prepare_discharge_document, complete_discharge)
 
 # --------------------- CONFIGURACIÓN ---------------------
 # Configura la conexión con MongoDB.
