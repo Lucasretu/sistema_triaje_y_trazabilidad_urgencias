@@ -2,8 +2,9 @@
 import json
 import time
 import redis
+import math
 
-from config import REDIS_HOST, REDIS_PORT, REDIS_DB
+from .config import REDIS_HOST, REDIS_PORT, REDIS_DB
 
 # Define el nombre de la cola de espera.
 QUEUE_KEY = "urgencias:cola_espera"
@@ -35,10 +36,10 @@ def calculate_attention_limit(paciente):
     espera = triaje.get("tiempo_max_espera_min")
 
     # Comprueba que los datos son números
-    if isinstance(llegada, bool) or not isinstance(llegada, (int, float)):
+    if isinstance(llegada, bool) or not isinstance(llegada, (int, float)) or not math.isfinite(llegada):
         raise ValueError("El timestamp de llegada no es válido.")
 
-    if isinstance(espera, bool) or not isinstance(espera, (int, float)) or espera < 0:
+    if isinstance(espera, bool) or not isinstance(espera, (int, float)) or not math.isfinite(espera) or espera < 0:
         raise ValueError("El tiempo máximo de espera no es válido.")
 
     # Calcula la fecha límite de atención expresada en segundos.

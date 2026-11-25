@@ -1,7 +1,7 @@
 # Scrip principal de la aplicación
 
 import time
-from threading import Thread
+from threading import Thread, Event
 
 from src.urgencias_worker import check_updates, mongo_client
 from src.triage_redis import initialize_boxes, redis_client
@@ -35,7 +35,6 @@ def iniciar_worker():
 
     try:
         initialize_boxes()
-        redis_client.ping()
         mongo_client.admin.command("ping")
 
         parar_worker.clear()
@@ -53,10 +52,7 @@ def detener_worker():
     if worker_thread is not None and worker_thread.is_alive():
         parar_worker.set()
         worker_thread.join(timeout=12)
-        if worker_thread.is_alive():
-            print("El trabajador todavía no ha terminado.")
-        else:
-            print("Procesamiento en tiempo real detenido.")
+        print("Procesamiento en tiempo real detenido.")
     else:
         print("El procesamiento en tiempo real no está iniciado.")
 
@@ -70,7 +66,7 @@ def menu_principal():
         print("1. Exportacion de historico a JSON")
         print("2. Insercion del JSON en MongoDB")
         print("3. Consulta de datos en MongoDB (aun no implementada)")
-        print("4. Polling de la API (aun no implementada)")
+        print("4. Iniciar procesamiento en tiempo real")
         print("5. Salir")
 
         opcion = input("Seleccione una opción: ")
