@@ -1,0 +1,6 @@
+.git
+docker/mongo_data
+__pycache__
+*.pyc
+.venv
+*.log
