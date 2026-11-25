@@ -3,18 +3,19 @@
 # Parte 1: Limpieza de los historicos y exportación a JSON
 
 import json, time
-import re
+
 
 from pathlib import Path
 
 import pandas as pd
 import numpy as np
 
+from pymongo import MongoClient
+from config import MONGO_URI
 
 # Carga de los historicos
-admisiones_historico= pd.read_csv("data/admisiones_historico.csv")
-partes_clinicos=pd.read_json("data/partes_clinicos.json")    
-
+admisiones_historico = None
+partes_clinicos = None
 # Pone todos los campos de tipo str del csv con un formato normalizado
 def formato():
     admisiones_historico["id_episodio"] = admisiones_historico["id_episodio"].str.strip().str.upper()
@@ -52,7 +53,7 @@ def correcion_formato_fechas(serie):
     "%d/%m/%Y %H:%M:%S",
     "%Y/%m/%d %H:%M:%S"
     ]
-    resultado = pd.Series(pd.NaT, index=admisiones_historico.index, dtype="datetime64[ns]")
+    resultado = pd.Series(pd.NaT, index=serie.index, dtype="datetime64[ns]")
     for fmt in formatos:
         parsed = pd.to_datetime(raw, format=fmt, errors="coerce")
         resultado = resultado.fillna(parsed)
@@ -65,6 +66,7 @@ def correcion_formato_fechas(serie):
 
 # Elimina los duplicados del csv en funcion del numero de null del registro   
 def del_duplicados(df):
+    df=df.copy()
     df["n_nulos"]=df.isna().sum(axis=1)
     df = (
         df.sort_values(["n_nulos", "timestamp_alta"], ascending=[True, False])
@@ -76,6 +78,7 @@ def del_duplicados(df):
 
 def limpiar_admisiones():
     formato()
+    correcion_errores_frecuencias()
     admisiones_historico["timestamp_llegada"]=correcion_formato_fechas(admisiones_historico["timestamp_llegada"])
     admisiones_historico["timestamp_alta"]=correcion_formato_fechas(admisiones_historico["timestamp_alta"])
     admisiones_historico.loc[admisiones_historico["timestamp_alta"] < admisiones_historico["timestamp_llegada"], ["timestamp_llegada", "timestamp_alta"]] = pd.NaT
@@ -92,10 +95,10 @@ def limpiar_admisiones():
 
 def limpiar_partes_Clinicos():
     #Duplicados
-    partes_clinicos.drop_duplicates(subset="_id_parte")
+    partes_limpios=partes_clinicos.drop_duplicates(subset="_id_parte")
     #formato edad 
-    partes_clinicos["edad"]=pd.to_numeric(partes_clinicos["edad"],errors="coerce")   
-    for constantes in partes_clinicos["constantes"]:
+    partes_limpios["edad"]=pd.to_numeric(partes_clinicos["edad"],errors="coerce")   
+    for constantes in partes_limpios["constantes"]:
         #formato temperatura y saturacion y añadir la glucemia en caso necesario
         constantes["temperatura_c"]=pd.to_numeric(constantes["temperatura_c"],errors="coerce")
         constantes["saturacion_o2"]=pd.to_numeric(constantes["saturacion_o2"],errors="coerce")
@@ -107,7 +110,7 @@ def limpiar_partes_Clinicos():
         if(constantes["temperatura_c"]<=30 or constantes["temperatura_c"]>=43):
             constantes["temperatura_c"]=np.nan
     
-    return partes_clinicos
+    return partes_limpios
 
 
 def nan_a_none(v):
@@ -194,33 +197,79 @@ def exportar_json(resultado):
     with open("data/migracion_mongo.json", "w", encoding="utf-8") as f:
         json.dump(resultado, f, indent=4, ensure_ascii=False, default=str)
  
-# Ejecucion del script
-df_limpio = limpiar_admisiones()
-df_partes = limpiar_partes_Clinicos()
-df_final = unir_datos(df_limpio, df_partes)
-exportar_json(df_final)
 
-main_1()
+
+def main_1():
+    # Indicamos que main_1() va a cargar los datos en esas variables compartidas, para que las demás funciones puedan utilizarlas.
+    global admisiones_historico, partes_clinicos
+ 
+    # Carga los archivos históricos.
+    admisiones_historico = pd.read_csv("data/admisiones_historico.csv")
+    partes_clinicos = pd.read_json("data/partes_clinicos.json")
+ 
+    # Limpia los datos de ambos archivos.
+    df_limpio = limpiar_admisiones()
+    df_partes = limpiar_partes_Clinicos()
+ 
+    # Une los datos y genera el resultado.
+    df_final = unir_datos(df_limpio, df_partes)
+ 
+    # Exporta el resultado a JSON.
+    exportar_json(df_final)
+ 
+    print("Exportación del histórico a JSON completada.") 
 
 # Parte 2: Migración de los historicos a MongoDB
-
-import json
-
-from pymongo import MongoClient
-
-# Conexion al servidor local
-client = MongoClient("mongodb://localhost:27017/")
-historico_db = client["hospital_db"]
-datos = historico_db["episodios"]
-
-# Leemos el json
-with open("data/migracion_mongo.json", encoding="utf-8") as f:
-    historico = json.load(f)
-
 def main_2():
-    # Borramos todo para que no haya duplicados al insertar
-    datos.delete_many({})
-    # Insertamos el hsitorico
-    datos.insert_many(historico)
+    with open("data/migracion_mongo.json", encoding="utf-8") as f:
+        historico = json.load(f)
+ 
+    main_1()
+ 
+    df_limpio = limpiar_admisiones()
+    df_partes = limpiar_partes_Clinicos()
+ 
+    df_final = pd.merge(
+        df_limpio,
+        df_partes,
+        on=["id_episodio", "sip_paciente"],
+        how="inner",
+        validate="one_to_one",
+    )
+ 
+    modulos_cols = [c for c in df_final if c.startswith("modulo_")]
+ 
+    client = MongoClient(MONGO_URI)
+ 
+    try:
+        historico_db = client["hospital_db"]
+        datos = historico_db["episodios"]
+ 
+        documentos = []
+ 
+        for _, serie in df_final.iterrows():
+            documento = construir_ingresos(serie, modulos_cols)
+ 
+            if pd.notna(serie["timestamp_alta"]):
+                documento["datos_alta"] = {
+                    "timestamp_alta": a_epoch(serie["timestamp_alta"]),
+                    "fecha_hora_alta": a_texto(serie["timestamp_alta"]),
+                    "destino_alta": nan_a_none(serie["destino_alta"]),
+                }
+ 
+            documentos.append(documento)
+ 
+        for documento in documentos:
+            datos.update_one(
+                {"id_episodio": documento["id_episodio"]},
+                {"$set": documento},
+                upsert=True
+            )
+ 
+        print(f"Documentos migrados a MongoDB: {len(documentos)}")
+ 
+    finally:
+        client.close()
 
-main_2()
+if __name__ == "__main__":
+    main_1()
