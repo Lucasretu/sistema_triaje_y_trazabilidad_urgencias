@@ -78,7 +78,7 @@ def menu_principal():
             # Llamamos a la funcion principal del script del ETL para limpiar los datos y exportarlos a JSON
             try:
                 etl_main()
-                print("Exportación de historico a JSON completada.")
+                print("Exportación del historico a JSON completada.")
             except Exception as e:
                 print(f"No se pudo exportar el histórico: {e}")
         elif opcion == "2":

@@ -261,14 +261,9 @@ def main_1():
  
     # Exporta el resultado a JSON.
     exportar_json(df_final)
- 
-    print("Exportación del histórico a JSON completada.") 
 
 # Parte 2: Migración de los historicos a MongoDB
 def main_2():
-    
- 
-    main_1()
  
     df_limpio = limpiar_admisiones()
     df_partes = limpiar_partes_Clinicos()
